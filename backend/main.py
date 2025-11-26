@@ -24,6 +24,8 @@ mf = Mftool()
 
 # MongoDB connection
 MONGODB_URL = os.getenv("MONGODB_URL")
+if not MONGODB_URL:
+    logger.error("MONGODB_URL environment variable is not set. MongoDB connection will likely fail.")
 client = MongoClient(MONGODB_URL)
 db = client["codezen"]
 users_collection = db["users"]
@@ -74,8 +76,8 @@ async def get_schemes(search: str = "") -> Dict[str, str]:
             return filtered_schemes if filtered_schemes else {}
         return all_schemes
     except Exception as e:
-        logger.error(f"Error fetching schemes: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error fetching schemes")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/api/scheme-details/{scheme_code}")
 async def get_scheme_details(scheme_code: str) -> Dict[str, str]:
@@ -83,8 +85,8 @@ async def get_scheme_details(scheme_code: str) -> Dict[str, str]:
         details = mf.get_scheme_details(scheme_code)
         return stringify_dict(details) if details else {}
     except Exception as e:
-        logger.error(f"Error fetching scheme details: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error fetching scheme details")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/api/historical-nav/{scheme_code}")
 async def get_historical_nav(scheme_code: str) -> List[Dict[str, str]]:
@@ -95,8 +97,8 @@ async def get_historical_nav(scheme_code: str) -> List[Dict[str, str]]:
             return nav_data.to_dict(orient="records")
         return []
     except Exception as e:
-        logger.error(f"Error fetching historical NAV: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error fetching historical NAV")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/api/compare-navs")
 async def compare_navs(scheme_codes: str) -> List[Dict[str, Any]]:
@@ -121,8 +123,8 @@ async def compare_navs(scheme_codes: str) -> List[Dict[str, Any]]:
             return merged_df.reset_index().to_dict(orient="records")
         return []
     except Exception as e:
-        logger.error(f"Error comparing NAVs: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error comparing NAVs")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/api/average-aum")
 async def get_average_aum(period: str = "July - September 2024") -> List[Dict[str, str]]:
@@ -134,8 +136,8 @@ async def get_average_aum(period: str = "July - September 2024") -> List[Dict[st
             return aum_df[["Fund Name", "Total AUM"]].astype(str).to_dict(orient="records")
         return []
     except Exception as e:
-        logger.error(f"Error fetching AUM: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error fetching AUM")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/api/performance-heatmap/{scheme_code}")
 async def get_performance_heatmap(scheme_code: str) -> List[Dict[str, Any]]:
@@ -153,8 +155,8 @@ async def get_performance_heatmap(scheme_code: str) -> List[Dict[str, Any]]:
             return heatmap_data.to_dict(orient="records")
         return []
     except Exception as e:
-        logger.error(f"Error fetching performance heatmap: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error fetching performance heatmap")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 # Updated Risk Volatility Endpoint
 @app.get("/api/risk-volatility/{scheme_code}")
@@ -200,8 +202,8 @@ async def get_risk_volatility(scheme_code: str) -> Dict[str, Any]:
             "returns": returns_list
         }
     except Exception as e:
-        logger.error(f"Error fetching risk volatility for {scheme_code}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error fetching risk volatility")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/api/monte-carlo-prediction/{scheme_code}")
 async def get_monte_carlo_prediction(scheme_code: str, num_simulations: int = 1000, days: int = 252) -> Dict[str, Any]:
@@ -241,8 +243,8 @@ async def get_monte_carlo_prediction(scheme_code: str, num_simulations: int = 10
             "last_nav": last_nav,
         }
     except Exception as e:
-        logger.error(f"Error in Monte Carlo prediction: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error in Monte Carlo prediction")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/api/portfolio-summary/{user_id}")
 async def get_portfolio_summary(user_id: str) -> Dict[str, Any]:
@@ -298,8 +300,8 @@ async def get_portfolio_summary(user_id: str) -> Dict[str, Any]:
 
         return {"items": summary_items, "total_latest_nav": total_latest_nav}
     except Exception as e:
-        logger.error(f"Error fetching portfolio summary for {user_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error fetching portfolio summary")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/api/save-user")
 async def save_user(user: Dict[str, Any]):
@@ -337,9 +339,29 @@ async def save_user(user: Dict[str, Any]):
         )
         logger.info(f"User {user_id} saved/updated successfully")
         return {"message": "User saved successfully", "modified_count": result.modified_count}
-    except Exception as e:
-        logger.error(f"Error saving user: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        # Log full exception with stack trace for easier debugging in server logs
+        logger.exception("Error saving user")
+        # Return a generic error to the client; check server logs for details
+        raise HTTPException(status_code=500, detail="Internal server error while saving user")
+
+
+@app.get("/api/health")
+async def health_check():
+    """Simple health check that verifies MongoDB connectivity."""
+    try:
+        # Try a lightweight ping to MongoDB
+        mongo_ok = False
+        try:
+            client.admin.command('ping')
+            mongo_ok = True
+        except Exception as me:
+            logger.exception("MongoDB ping failed")
+
+        return {"ok": True, "mongo_connected": mongo_ok}
+    except Exception:
+        logger.exception("Health check failed")
+        raise HTTPException(status_code=500, detail="Health check failed")
 
 @app.get("/api/get-user/{user_id}")
 async def get_user(user_id: str):
@@ -350,8 +372,8 @@ async def get_user(user_id: str):
         user_data.pop("_id", None)
         return user_data
     except Exception as e:
-        logger.error(f"Error fetching user {user_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error fetching user")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/api/add-to-portfolio")
 async def add_to_portfolio(item: Dict[str, Any]):
@@ -378,8 +400,8 @@ async def add_to_portfolio(item: Dict[str, Any]):
         logger.info(f"Added {item.get('name')} to portfolio for user {user_id}")
         return {"message": "Item added to portfolio", "id": str(result.inserted_id)}
     except Exception as e:
-        logger.error(f"Error adding to portfolio: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error adding to portfolio")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.delete("/api/remove-from-portfolio/{user_id}/{item_id}")
 async def remove_from_portfolio(user_id: str, item_id: str):
@@ -390,8 +412,8 @@ async def remove_from_portfolio(user_id: str, item_id: str):
         logger.info(f"Removed item {item_id} from portfolio for user {user_id}")
         return {"message": "Item removed from portfolio"}
     except Exception as e:
-        logger.error(f"Error removing item from portfolio: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error removing item from portfolio")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/api/get-portfolio/{user_id}")
 async def get_portfolio(user_id: str):
@@ -401,8 +423,8 @@ async def get_portfolio(user_id: str):
             item.pop("_id", None)
         return portfolio_items
     except Exception as e:
-        logger.error(f"Error fetching portfolio for {user_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error fetching portfolio")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 if __name__ == "__main__":
     import uvicorn
