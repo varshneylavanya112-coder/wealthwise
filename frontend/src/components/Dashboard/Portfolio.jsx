@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import styles from "../../style";
-import { useAuth0 } from "@auth0/auth0-react";
 import Groq from "groq-sdk";
+import { useUser } from "@clerk/clerk-react";
 
 const Portfolio = () => {
-  const { user, isAuthenticated, loginWithRedirect } = useAuth0();
+  const { user, isSignedIn } = useUser();
   const [portfolioItems, setPortfolioItems] = useState([]);
   const [portfolioSummary, setPortfolioSummary] = useState({ items: [], total_latest_nav: 0 });
   const [loading, setLoading] = useState(false);
@@ -22,17 +22,17 @@ const Portfolio = () => {
 
   useEffect(() => {
     const fetchPortfolio = async () => {
-      if (!isAuthenticated || !user) {
+      if (!isSignedIn || !user) {
         setError("Please log in to view your portfolio.");
         return;
       }
       setLoading(true);
       setError(null);
       try {
-        const itemsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/get-portfolio/${user.sub}`);
+        const itemsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/get-portfolio/${user.id}`);
         setPortfolioItems(itemsResponse.data);
 
-        const summaryResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/portfolio-summary/${user.sub}`);
+        const summaryResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/portfolio-summary/${user.id}`);
         setPortfolioSummary(summaryResponse.data);
       } catch (err) {
         console.error("Error fetching portfolio:", err);
@@ -45,12 +45,12 @@ const Portfolio = () => {
   }, [isAuthenticated, user]);
 
   const handleRemoveItem = async (itemId) => {
-    if (!isAuthenticated || !user) {
+    if (!isSignedIn || !user) {
       alert("Please log in to remove items.");
       return;
     }
     try {
-      await axios.delete(`${import.meta.env.VITE_API_URL}/api/remove-from-portfolio/${user.sub}/${itemId}`);
+      await axios.delete(`${import.meta.env.VITE_API_URL}/api/remove-from-portfolio/${user.id}/${itemId}`);
       setPortfolioItems(portfolioItems.filter((item) => item.item_id !== itemId));
       setPortfolioSummary((prev) => ({
         ...prev,
@@ -177,8 +177,9 @@ const Portfolio = () => {
     }
   };
 
-  if (!isAuthenticated) {
-    loginWithRedirect();
+  if (!isSignedIn) {
+    // Redirect to Clerk sign-in route
+    window.location.href = "/sign-in";
     return null;
   }
 

@@ -9,11 +9,11 @@ import CalculateReturns from "./CalculateReturns";
 import CompareNAVs from "./CompareNAVs";
 import Chatbot from "../Chatbot";
 import Groq from "groq-sdk";
-import { useAuth0 } from "@auth0/auth0-react";
+import { useUser } from "@clerk/clerk-react";
 import { motion } from "framer-motion";
 
 const MutualFundDashboard = () => {
-  const { user, isAuthenticated } = useAuth0();
+  const { user, isSignedIn } = useUser();
   const [searchTerm, setSearchTerm] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [selectedFund, setSelectedFund] = useState(null);
@@ -140,13 +140,13 @@ const MutualFundDashboard = () => {
   };
 
   const addToPortfolio = async (item) => {
-    if (!isAuthenticated || !user) {
+    if (!isSignedIn || !user) {
       alert("Please log in to add items to your portfolio!");
       return;
     }
     try {
       const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/add-to-portfolio`, {
-        user_id: user.sub,
+        user_id: user.id,
         item_type: "mutual_fund",
         item_id: item.code,
         name: item.name,

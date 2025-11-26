@@ -18,7 +18,6 @@ import CoinContextProvider from "./context/CoinContext";
 import CryptoDashboard from "./components/CryptoDashboard/App";
 import Portfolio from "./components/Dashboard/Portfolio";
 import { EducationHub } from "./EducationHub";
-import { useAuth0 } from "@auth0/auth0-react";
 
 const Layout = ({ children }) => (
   <div className="bg-primary w-full overflow-hidden">

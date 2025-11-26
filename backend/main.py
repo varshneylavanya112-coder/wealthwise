@@ -304,19 +304,34 @@ async def get_portfolio_summary(user_id: str) -> Dict[str, Any]:
 @app.post("/api/save-user")
 async def save_user(user: Dict[str, Any]):
     try:
-        user_id = user.get("sub")
+        # Support both Auth0 and Clerk payload shapes.
+        # Auth0 often sends `sub`; Clerk will send `id` and `firstName`/`lastName`/`fullName`.
+        user_id = user.get("sub") or user.get("id") or user.get("user_id")
         if not user_id:
-            raise HTTPException(status_code=400, detail="User ID (sub) is required")
+            raise HTTPException(status_code=400, detail="User ID (sub or id) is required")
+
+        # Normalize fields for storage
+        email = user.get("email") or user.get("primaryEmailAddress") or None
+        # If Clerk passed primaryEmailAddress object, try to extract email
+        if isinstance(email, dict):
+            email = email.get("emailAddress")
+
+        first_name = user.get("given_name") or user.get("firstName") or None
+        last_name = user.get("family_name") or user.get("lastName") or None
+        full_name = user.get("name") or user.get("fullName") or None
+        picture = user.get("picture") or user.get("avatar_url") or None
+        last_login = user.get("updated_at") or user.get("last_sign_in_at") or None
+
         result = users_collection.update_one(
             {"user_id": user_id},
             {"$set": {
                 "user_id": user_id,
-                "email": user.get("email"),
-                "given_name": user.get("given_name"),
-                "family_name": user.get("family_name"),
-                "name": user.get("name"),
-                "picture": user.get("picture"),
-                "last_login": user.get("updated_at"),
+                "email": email,
+                "given_name": first_name,
+                "family_name": last_name,
+                "name": full_name,
+                "picture": picture,
+                "last_login": last_login,
             }},
             upsert=True
         )

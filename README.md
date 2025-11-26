@@ -116,7 +116,7 @@ anamiiikka-codezen/
 - **Portfolio Management**: Add, remove, and track investments in mutual funds and cryptocurrencies.
 - **AI-Powered Insights**: Get AI-generated analysis and reports for your investments.
 - **Education Hub**: Learn about financial markets with curated videos and trending news.
-- **Authentication**: Secure login and user management via Auth0.
+ - **Authentication**: Secure login and user management via Clerk.
 
 ---
 
@@ -125,7 +125,7 @@ anamiiikka-codezen/
 - **Frontend**: React, Vite, TailwindCSS, Framer Motion, Recharts, Plotly.js
 - **Backend**: FastAPI, MongoDB, Python (mftool, pandas, numpy)
 - **AI Integration**: Groq API (Llama 3.3-70b)
-- **Authentication**: Auth0
+ - **Authentication**: Clerk
 - **Deployment**: Vercel
 
 ---
@@ -142,8 +142,7 @@ FRONTEND_URL=http://localhost:5173
 ### Frontend (`.env`)
 
 ```plaintext
-VITE_AUTH0_DOMAIN=your_auth0_domain
-VITE_AUTH0_CLIENT_ID=your_auth0_client_id
+VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 VITE_API_URL=http://localhost:8000
 VITE_GROQ_API_KEY=your_groq_api_key
 VITE_YOUTUBE_API_KEY=your_youtube_api_key

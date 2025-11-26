@@ -6,7 +6,7 @@ import styles from "../../style";
 import { CoinContext } from "../../context/CoinContext";
 import Chatbot from "../Chatbot";
 import Groq from "groq-sdk";
-import { useAuth0 } from "@auth0/auth0-react";
+import { useUser } from "@clerk/clerk-react";
 import { motion } from "framer-motion";
 
 // Custom Components (Now Rendering JSX)
@@ -152,7 +152,7 @@ const computeReturns = (historicalPrice) => {
 
 const CryptoDashboard = () => {
   const { allCoin, currency } = useContext(CoinContext);
-  const { user, isAuthenticated } = useAuth0();
+  const { user, isSignedIn } = useUser();
   const [searchTerm, setSearchTerm] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [selectedCoin, setSelectedCoin] = useState(null);
@@ -261,7 +261,7 @@ const CryptoDashboard = () => {
   };
 
   const addToPortfolio = async (coin) => {
-    if (!isAuthenticated || !user) {
+    if (!isSignedIn || !user) {
       alert("Please log in to add items to your portfolio!");
       return;
     }
@@ -269,7 +269,7 @@ const CryptoDashboard = () => {
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/add-to-portfolio`,
         {
-          user_id: user.sub,
+          user_id: user.id,
           item_type: "crypto",
           item_id: coin.id,
           name: coin.name,

@@ -1,35 +1,36 @@
 import { useState } from "react";
 import { close, logo, menu } from "../assets";
 import { navLinks } from "../constants";
-import { Link, useNavigate } from "react-router-dom"; // Added useNavigate
-import { useAuth0 } from "@auth0/auth0-react";
+import { Link, useNavigate } from "react-router-dom";
+
+// Clerk imports — this is all you need
+import {
+  SignedIn,
+  SignedOut,
+  UserButton,
+  SignInButton,
+  useUser,
+} from "@clerk/clerk-react";
 
 const Navbar = () => {
-  const { logout, loginWithRedirect, user, isAuthenticated } = useAuth0();
   const [active, setActive] = useState("Home");
   const [toggle, setToggle] = useState(false);
   const [dropdown, setDropdown] = useState(false);
-  const navigate = useNavigate(); // Hook for navigation
+  const navigate = useNavigate();
+  const { user } = useUser(); // Optional: show user name/email
 
-  // Toggle dropdown for "Options"
   const handleDropdownToggle = () => {
     setDropdown((prev) => !prev);
   };
 
-  // Handle navigation with smooth scrolling for "Features"
   const handleNavClick = (navId, navTitle) => {
     setActive(navTitle);
     if (navId === "features") {
-      // Navigate to home and scroll to features section
       navigate("/");
       setTimeout(() => {
-        const element = document.getElementById("features");
-        if (element) {
-          element.scrollIntoView({ behavior: "smooth" });
-        }
-      }, 0); // Delay ensures DOM updates after navigation
+        document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
+      }, 0);
     } else if (navId !== "Options") {
-      // Regular navigation for other links
       navigate(navId === "home" ? "/" : `/${navId}`);
     }
   };
@@ -37,9 +38,10 @@ const Navbar = () => {
   return (
     <nav className="w-full flex py-6 justify-between items-center navbar">
       <Link to="/" className="font-poppins font-semibold text-white text-[24px]">
-        Phoenix Arcana🐦‍🔥
+        Phoenix Arcana
       </Link>
 
+      {/* Desktop Menu */}
       <ul className="list-none sm:flex hidden justify-end items-center flex-1">
         {navLinks.map((nav, index) => (
           <li
@@ -56,9 +58,11 @@ const Navbar = () => {
               <>
                 <span>{nav.title}</span>
                 {dropdown && (
-                  <ul className="absolute top-full left-0 mt-2 bg-gray-800 p-4 rounded-lg shadow-lg w-[200px] z-10">
+                  <ul className="absolute top-full left-0 mt-2 bg-gray-800 p-4 rounded-lg shadow-lg w-[200px] z-50">
                     <li className="text-white px-4 py-3 hover:bg-gray-700 cursor-pointer">
-                      
+                      <Link to="/dashboard/stocks" onClick={() => setDropdown(false)}>
+                        Stocks
+                      </Link>
                     </li>
                     <li className="text-white px-4 py-3 hover:bg-gray-700 cursor-pointer">
                       <Link to="/dashboard/mutual-funds" onClick={() => setDropdown(false)}>
@@ -74,52 +78,47 @@ const Navbar = () => {
                 )}
               </>
             ) : (
-              <span>{nav.title}</span> // Replaced Link with span for custom behavior
+              <span>{nav.title}</span>
             )}
           </li>
         ))}
-        <li
-          className={`font-poppins font-normal cursor-pointer text-[16px] ${
-            active === "Portfolio" ? "text-white" : "text-dimWhite"
-          } mr-10`}
-          onClick={() => setActive("Portfolio")}
-        >
+
+        <li className="font-poppins font-normal cursor-pointer text-[16px] text-dimWhite mr-10">
           <Link to="/dashboard/portfolio">Portfolio</Link>
         </li>
-        {isAuthenticated ? (
+
+        {/* Clerk Auth Buttons (Desktop) */}
+        <SignedOut>
           <li className="ml-6">
-            <button
-              type="button"
-              className="py-4 px-6 font-poppins font-medium text-[18px] text-primary bg-blue-gradient rounded-[10px] outline-none"
-              onClick={() => logout({ returnTo: window.location.origin })}
-            >
-              Logout
-            </button>
+            <SignInButton mode="modal">
+              <button className="py-4 px-6 font-poppins font-medium text-[18px] text-primary bg-blue-gradient rounded-[10px] outline-none hover:opacity-90 transition">
+                Login
+              </button>
+            </SignInButton>
           </li>
-        ) : (
-          <li className="ml-6">
-            <button
-              type="button"
-              className="py-4 px-6 font-poppins font-medium text-[18px] text-primary bg-blue-gradient rounded-[10px] outline-none"
-              onClick={() => loginWithRedirect()}
-            >
-              Login
-            </button>
+        </SignedOut>
+
+        <SignedIn>
+          <li className="ml-6 flex items-center gap-3">
+            {user?.firstName && <span className="text-dimWhite">Hi, {user.firstName}!</span>}
+            <UserButton afterSignOutUrl="/" />
           </li>
-        )}
+        </SignedIn>
       </ul>
 
+      {/* Mobile Menu */}
       <div className="sm:hidden flex flex-1 justify-end items-center">
         <img
           src={toggle ? close : menu}
           alt="menu"
-          className="w-[28px] h-[28px] object-contain"
+          className="w-[28px] h-[28px] object-contain cursor-pointer"
           onClick={() => setToggle(!toggle)}
         />
+
         <div
           className={`${
             !toggle ? "hidden" : "flex"
-          } p-6 bg-black-gradient absolute top-20 right-0 mx-4 my-2 min-w-[140px] rounded-xl sidebar`}
+          } p-6 bg-black-gradient absolute top-20 right-0 mx-4 my-2 min-w-[140px] rounded-xl sidebar z-50`}
         >
           <ul className="list-none flex justify-end items-start flex-1 flex-col">
             {navLinks.map((nav, index) => (
@@ -129,10 +128,11 @@ const Navbar = () => {
                   active === nav.title ? "text-white" : "text-dimWhite"
                 } ${index === navLinks.length - 1 ? "mb-4" : "mb-4"}`}
                 onClick={() => {
-                  if (nav.id === "Options") handleDropdownToggle();
-                  else {
+                  if (nav.id === "Options") {
+                    handleDropdownToggle();
+                  } else {
                     handleNavClick(nav.id, nav.title);
-                    setToggle(false); // Close mobile menu after click
+                    setToggle(false);
                   }
                 }}
               >
@@ -140,37 +140,19 @@ const Navbar = () => {
                   <>
                     <span>{nav.title}</span>
                     {dropdown && (
-                      <ul className="mt-2">
+                      <ul className="mt-4 ml-4">
                         <li className="text-white py-2">
-                          <Link
-                            to="/dashboard/stocks"
-                            onClick={() => {
-                              setDropdown(false);
-                              setToggle(false);
-                            }}
-                          >
+                          <Link to="/dashboard/stocks" onClick={() => { setDropdown(false); setToggle(false); }}>
                             Stocks
                           </Link>
                         </li>
                         <li className="text-white py-2">
-                          <Link
-                            to="/dashboard/mutual-funds"
-                            onClick={() => {
-                              setDropdown(false);
-                              setToggle(false);
-                            }}
-                          >
+                          <Link to="/dashboard/mutual-funds" onClick={() => { setDropdown(false); setToggle(false); }}>
                             Mutual Funds
                           </Link>
                         </li>
                         <li className="text-white py-2">
-                          <Link
-                            to="/dashboard/crypto"
-                            onClick={() => {
-                              setDropdown(false);
-                              setToggle(false);
-                            }}
-                          >
+                          <Link to="/dashboard/crypto" onClick={() => { setDropdown(false); setToggle(false); }}>
                             Crypto
                           </Link>
                         </li>
@@ -178,42 +160,34 @@ const Navbar = () => {
                     )}
                   </>
                 ) : (
-                  <span>{nav.title}</span> // Replaced Link with span
+                  <span>{nav.title}</span>
                 )}
               </li>
             ))}
-            <li
-              className={`font-poppins font-medium cursor-pointer text-[16px] ${
-                active === "Portfolio" ? "text-white" : "text-dimWhite"
-              } mb-4`}
-              onClick={() => {
-                setActive("Portfolio");
-                setToggle(false); // Close mobile menu
-              }}
-            >
-              <Link to="/dashboard/portfolio">Portfolio</Link>
+
+            <li className="font-poppins font-medium cursor-pointer text-[16px] text-dimWhite mb-4">
+              <Link to="/dashboard/portfolio" onClick={() => setToggle(false)}>
+                Portfolio
+              </Link>
             </li>
-            {isAuthenticated ? (
-              <li className="mt-4">
-                <button
-                  type="button"
-                  className="py-4 px-6 font-poppins font-medium text-[18px] text-primary bg-blue-gradient rounded-[10px] outline-none"
-                  onClick={() => logout({ returnTo: window.location.origin })}
-                >
-                  Logout
-                </button>
+
+            {/* Clerk Auth in Mobile */}
+            <SignedOut>
+              <li className="mt-4 w-full">
+                <SignInButton mode="modal">
+                  <button className="w-full py-4 px-6 font-poppins font-medium text-[18px] text-primary bg-blue-gradient rounded-[10px]">
+                    Login
+                  </button>
+                </SignInButton>
               </li>
-            ) : (
-              <li className="mt-4">
-                <button
-                  type="button"
-                  className="py-4 px-6 font-poppins font-medium text-[18px] text-primary bg-blue-gradient rounded-[10px] outline-none"
-                  onClick={() => loginWithRedirect()}
-                >
-                  Login
-                </button>
+            </SignedOut>
+
+            <SignedIn>
+              <li className="mt-4 flex items-center gap-3">
+                <span className="text-dimWhite text-sm">Hi, {user?.firstName || "User"}!</span>
+                <UserButton afterSignOutUrl="/" />
               </li>
-            )}
+            </SignedIn>
           </ul>
         </div>
       </div>

@@ -1,20 +1,16 @@
-// frontend/src/main.jsx
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import './index.css';
+import { ClerkProvider } from '@clerk/clerk-react';  // New import
 import App from './App.jsx';
-import { Auth0Provider } from '@auth0/auth0-react';
+import './index.css';
+
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+if (!PUBLISHABLE_KEY) throw new Error('Missing Clerk key!');
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <Auth0Provider
-      domain={import.meta.env.VITE_AUTH0_DOMAIN}
-      clientId={import.meta.env.VITE_AUTH0_CLIENT_ID}
-      authorizationParams={{
-        redirect_uri: window.location.origin, // Should be https://wealthwise-mw7u.onrender.com on Render
-      }}
-    >
+    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
       <App />
-    </Auth0Provider>
-  </StrictMode>,
+    </ClerkProvider>
+  </StrictMode>
 );
