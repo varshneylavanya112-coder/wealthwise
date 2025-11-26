@@ -42,7 +42,7 @@ const Portfolio = () => {
       }
     };
     fetchPortfolio();
-  }, [isAuthenticated, user]);
+  }, [isSignedIn, user]);
 
   const handleRemoveItem = async (itemId) => {
     if (!isSignedIn || !user) {
@@ -64,7 +64,7 @@ const Portfolio = () => {
   };
 
   const handleAiAnalysis = async () => {
-    if (!isAuthenticated || !user || portfolioItems.length === 0) {
+    if (!isSignedIn || !user || portfolioItems.length === 0) {
       setAiAnalysis("Please add items to your portfolio to get an AI analysis!");
       return;
     }
@@ -110,7 +110,7 @@ const Portfolio = () => {
   };
 
   const handleAiReport = async () => {
-    if (!isAuthenticated || !user || portfolioItems.length === 0) {
+    if (!isSignedIn || !user || portfolioItems.length === 0) {
       setAiReport("Please add items to your portfolio to get an AI report!");
       return;
     }
@@ -188,7 +188,7 @@ const Portfolio = () => {
       <div className="max-w-[1200px] mx-auto">
         <div className="bg-gray-800 rounded-lg p-6 mb-6 shadow-md">
           <h1 className="text-white text-3xl font-semibold mb-2">
-            Welcome, {user?.name || "User"}!
+            Welcome, {user?.fullName || user?.firstName || user?.primaryEmailAddress?.emailAddress || "User"}!
           </h1>
           <p className="text-gray-400 text-lg mb-4">
             Here’s everything you’ve added to your portfolio:
