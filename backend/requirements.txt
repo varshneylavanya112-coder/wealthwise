@@ -7,3 +7,6 @@ python-dotenv
 pymongo
 gunicorn
 deprecated
+pymongo[srv]==4.4.0
+dnspython==2.3.0
+certifi==2025.9.0

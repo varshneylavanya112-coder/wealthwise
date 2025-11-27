@@ -8,6 +8,7 @@ from typing import Dict, List, Any
 import logging
 from starlette.responses import JSONResponse
 from pymongo import MongoClient
+import certifi
 from dotenv import load_dotenv
 import os
 from datetime import datetime
@@ -26,7 +27,14 @@ mf = Mftool()
 MONGODB_URL = os.getenv("MONGODB_URL")
 if not MONGODB_URL:
     logger.error("MONGODB_URL environment variable is not set. MongoDB connection will likely fail.")
-client = MongoClient(MONGODB_URL)
+# Ensure we use the system/packaged CA bundle (certifi) for TLS verification
+try:
+    ca_file = certifi.where()
+    client = MongoClient(MONGODB_URL, tls=True, tlsCAFile=ca_file)
+except Exception:
+    # Fall back to a default MongoClient if certifi is not available or something goes wrong
+    logger.exception("Failed to create MongoClient with certifi CA bundle; falling back to default client")
+    client = MongoClient(MONGODB_URL)
 db = client["codezen"]
 users_collection = db["users"]
 portfolio_collection = db["portfolio"]
