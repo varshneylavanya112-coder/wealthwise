@@ -371,6 +371,38 @@ async def health_check():
         logger.exception("Health check failed")
         raise HTTPException(status_code=500, detail="Health check failed")
 
+
+@app.get("/api/debug-ssl")
+async def debug_ssl():
+    """Debug endpoint to surface SSL/OpenSSL and certifi details and attempt a short MongoDB ping.
+    Use only for debugging; remove or protect in production."""
+    import ssl
+    import sys
+    import traceback
+    import os
+    result = {
+        "python_version": sys.version,
+        "openssl_version": getattr(ssl, 'OPENSSL_VERSION', 'unknown'),
+    }
+    try:
+        ca = certifi.where()
+        result["certifi_path"] = ca
+        result["certifi_exists"] = os.path.exists(ca)
+    except Exception as e:
+        result["certifi_error"] = str(e)
+
+    # Attempt a short MongoDB ping using the certifi CA bundle
+    try:
+        test_client = MongoClient(MONGODB_URL, tls=True, tlsCAFile=certifi.where(), serverSelectionTimeoutMS=5000)
+        test_client.admin.command('ping')
+        result["mongo_ping"] = True
+    except Exception as e:
+        result["mongo_ping"] = False
+        result["mongo_error"] = str(e)
+        result["mongo_traceback"] = traceback.format_exc()[-2000:]
+
+    return result
+
 @app.get("/api/get-user/{user_id}")
 async def get_user(user_id: str):
     try:
