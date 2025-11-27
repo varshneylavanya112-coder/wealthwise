@@ -4,7 +4,8 @@ mftool
 pandas
 numpy
 python-dotenv
-pymongo
+
+deprecated
 gunicorn
 deprecated
 pymongo[srv]==4.4.0

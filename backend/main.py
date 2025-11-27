@@ -28,13 +28,39 @@ MONGODB_URL = os.getenv("MONGODB_URL")
 if not MONGODB_URL:
     logger.error("MONGODB_URL environment variable is not set. MongoDB connection will likely fail.")
 # Ensure we use the system/packaged CA bundle (certifi) for TLS verification
-try:
+def create_mongo_client_with_certifi(url: str):
     ca_file = certifi.where()
-    client = MongoClient(MONGODB_URL, tls=True, tlsCAFile=ca_file)
+    logger.info(f"Using certifi CA file at: {ca_file}")
+    return MongoClient(url, tls=True, tlsCAFile=ca_file)
+
+client = None
+try:
+    client = create_mongo_client_with_certifi(MONGODB_URL)
+    # quick ping to validate the connection immediately
+    try:
+        client.admin.command('ping')
+        logger.info("MongoClient created with certifi and ping succeeded")
+    except Exception:
+        logger.exception("MongoDB ping failed with certifi CA bundle")
+        # If the environment explicitly allows insecure TLS (for debugging), try fallback
+        allow_insecure = os.getenv("MONGODB_ALLOW_INVALID_CERTS", "false").lower() in ("1", "true", "yes")
+        if allow_insecure:
+            logger.warning("MONGODB_ALLOW_INVALID_CERTS is set; attempting insecure TLS connection (not for production)")
+            try:
+                client = MongoClient(MONGODB_URL, tls=True, tlsAllowInvalidCertificates=True, serverSelectionTimeoutMS=10000)
+                client.admin.command('ping')
+                logger.info("MongoClient connected using tlsAllowInvalidCertificates=True (insecure)")
+            except Exception:
+                logger.exception("Insecure TLS fallback also failed")
+                # leave client as the last attempted client (likely failing)
+        else:
+            logger.error("Certifi-based connection failed and insecure fallback not allowed by env var")
 except Exception:
-    # Fall back to a default MongoClient if certifi is not available or something goes wrong
-    logger.exception("Failed to create MongoClient with certifi CA bundle; falling back to default client")
-    client = MongoClient(MONGODB_URL)
+    logger.exception("Failed to create MongoClient with certifi CA bundle; attempting default client creation")
+    try:
+        client = MongoClient(MONGODB_URL)
+    except Exception:
+        logger.exception("Failed to create default MongoClient")
 db = client["codezen"]
 users_collection = db["users"]
 portfolio_collection = db["portfolio"]
