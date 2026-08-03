@@ -332,8 +332,8 @@ async def get_schemes(search: str = "") -> Dict[str, str]:
             return filtered_schemes if filtered_schemes else {}
         return all_schemes
     except Exception as e:
-        logger.exception("Error fetching schemes")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.exception("Error fetching schemes; returning empty result for search=%s", search)
+        return {}
 
 @app.get("/api/scheme-details/{scheme_code}")
 async def get_scheme_details(scheme_code: str) -> Dict[str, str]:
@@ -341,8 +341,8 @@ async def get_scheme_details(scheme_code: str) -> Dict[str, str]:
         details = mf.get_scheme_details(scheme_code)
         return stringify_dict(details) if details else {}
     except Exception as e:
-        logger.exception("Error fetching scheme details")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.exception("Error fetching scheme details for scheme_code: %s", scheme_code)
+        return {}
 
 @app.get("/api/historical-nav/{scheme_code}")
 async def get_historical_nav(scheme_code: str) -> List[Dict[str, str]]:
@@ -360,7 +360,7 @@ async def get_historical_nav(scheme_code: str) -> List[Dict[str, str]]:
         return nav_data.to_dict(orient="records")
     except Exception as e:
         logger.exception("Error fetching historical NAV for scheme_code: %s", scheme_code)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        return []
 
 @app.get("/api/compare-navs")
 async def compare_navs(scheme_codes: str) -> List[Dict[str, Any]]:
