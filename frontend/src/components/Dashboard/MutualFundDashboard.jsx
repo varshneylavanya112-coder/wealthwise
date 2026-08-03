@@ -12,6 +12,8 @@ import Groq from "groq-sdk";
 import { useUser } from "@clerk/clerk-react";
 import { motion } from "framer-motion";
 
+const API_URL = import.meta.env.VITE_API_URL || "https://codezen-backend-bz1g.onrender.com";
+
 const MutualFundDashboard = () => {
   const { user, isSignedIn } = useUser();
   const [searchTerm, setSearchTerm] = useState("");
@@ -45,7 +47,7 @@ const MutualFundDashboard = () => {
     const fetchRandomFunds = async () => {
       setLoadingAnalysis(true);
       try {
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/schemes?search=`);
+        const response = await axios.get(`${API_URL}/api/schemes?search=`);
         const allFunds = Object.entries(response.data).map(([code, name]) => ({ code, name }));
         const shuffled = allFunds.sort(() => 0.5 - Math.random());
         setRandomFunds(shuffled.slice(0, 5));
@@ -68,7 +70,7 @@ const MutualFundDashboard = () => {
       setLoadingAnalysis(true);
       setError(null);
       try {
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/schemes?search=${searchTerm}`);
+        const response = await axios.get(`${API_URL}/api/schemes?search=${searchTerm}`);
         const schemesArray = Object.entries(response.data).map(([code, name]) => ({
           code,
           name,
@@ -101,15 +103,15 @@ const MutualFundDashboard = () => {
       setLoadingAnalysis(true);
       setError(null);
       try {
-        const detailsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/scheme-details/${selectedFund.code}`);
+        const detailsResponse = await axios.get(`${API_URL}/api/scheme-details/${selectedFund.code}`);
         setFundDetails(detailsResponse.data);
-        const navResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/historical-nav/${selectedFund.code}`);
+        const navResponse = await axios.get(`${API_URL}/api/historical-nav/${selectedFund.code}`);
         setHistoricalNav(navResponse.data);
-        const heatmapResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/performance-heatmap/${selectedFund.code}`);
+        const heatmapResponse = await axios.get(`${API_URL}/api/performance-heatmap/${selectedFund.code}`);
         setHeatmapData(heatmapResponse.data);
-        const monteCarloResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/monte-carlo-prediction/${selectedFund.code}`);
+        const monteCarloResponse = await axios.get(`${API_URL}/api/monte-carlo-prediction/${selectedFund.code}`);
         setMonteCarloData(monteCarloResponse.data);
-        const riskResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/risk-volatility/${selectedFund.code}`);
+        const riskResponse = await axios.get(`${API_URL}/api/risk-volatility/${selectedFund.code}`);
         setRiskVolatilityData(riskResponse.data);
       } catch (err) {
         console.error("Error fetching fund details:", err);
@@ -145,7 +147,7 @@ const MutualFundDashboard = () => {
       return;
     }
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/add-to-portfolio`, {
+      const response = await axios.post(`${API_URL}/api/add-to-portfolio`, {
         user_id: user.id,
         item_type: "mutual_fund",
         item_id: item.code,

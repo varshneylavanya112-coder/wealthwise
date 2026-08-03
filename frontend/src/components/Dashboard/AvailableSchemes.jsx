@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import styles from "../../style";
 
+const API_URL = import.meta.env.VITE_API_URL || "https://codezen-backend-bz1g.onrender.com";
+
 const AvailableSchemes = () => {
   const [amc, setAmc] = useState("ICICI");
   const [schemes, setSchemes] = useState([]);
@@ -26,8 +28,7 @@ const AvailableSchemes = () => {
       setLoading(true);
       setError(null);
       try {
-        const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-        const response = await axios.get(`${API_URL}/api/schemes?search=${searchTerm}`);
+        const response = await axios.get(`${API_URL}/api/schemes?search=${debouncedAmc}`);
         const schemesArray = Object.entries(response.data).map(([code, name]) => ({
           code,
           name,

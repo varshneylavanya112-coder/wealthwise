@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import axios from "axios";
 import { useUser, SignInButton } from "@clerk/clerk-react";
 
+const API_URL = import.meta.env.VITE_API_URL || "https://codezen-backend-bz1g.onrender.com";
+
 const GetStarted = () => {
   const { isSignedIn, user } = useUser();
 
@@ -18,7 +20,7 @@ const GetStarted = () => {
         email: user.primaryEmailAddress?.emailAddress,
       };
       axios
-        .post(`${import.meta.env.VITE_API_URL}/api/save-user`, payload)
+        .post(`${API_URL}/api/save-user`, payload)
         .then((response) => {
           console.log("User saved:", response.data);
         })

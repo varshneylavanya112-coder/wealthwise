@@ -4,6 +4,8 @@ import styles from "../../style";
 import Groq from "groq-sdk";
 import { useUser } from "@clerk/clerk-react";
 
+const API_URL = import.meta.env.VITE_API_URL || "https://codezen-backend-bz1g.onrender.com";
+
 const Portfolio = () => {
   const { user, isSignedIn } = useUser();
   const [portfolioItems, setPortfolioItems] = useState([]);
@@ -29,14 +31,30 @@ const Portfolio = () => {
       setLoading(true);
       setError(null);
       try {
-        const itemsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/get-portfolio/${user.id}`);
-        setPortfolioItems(itemsResponse.data);
+        const [itemsResponse, summaryResponse] = await Promise.allSettled([
+          axios.get(`${API_URL}/api/get-portfolio/${user.id}`),
+          axios.get(`${API_URL}/api/portfolio-summary/${user.id}`),
+        ]);
 
-        const summaryResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/portfolio-summary/${user.id}`);
-        setPortfolioSummary(summaryResponse.data);
+        if (itemsResponse.status === "fulfilled") {
+          setPortfolioItems(itemsResponse.value.data);
+        } else {
+          console.error("Error fetching portfolio items:", itemsResponse.reason);
+        }
+
+        if (summaryResponse.status === "fulfilled") {
+          setPortfolioSummary(summaryResponse.value.data);
+        } else {
+          console.error("Error fetching portfolio summary:", summaryResponse.reason);
+        }
+
+        if (itemsResponse.status === "rejected" && summaryResponse.status === "rejected") {
+          const details = itemsResponse.reason?.response?.data?.detail || summaryResponse.reason?.response?.data?.detail || itemsResponse.reason?.message || summaryResponse.reason?.message;
+          setError(`Failed to fetch your portfolio: ${details}`);
+        }
       } catch (err) {
         console.error("Error fetching portfolio:", err);
-        setError("Failed to fetch your portfolio. Please try again.");
+        setError(`Failed to fetch your portfolio. ${err.response?.data?.detail || err.message}`);
       } finally {
         setLoading(false);
       }
@@ -50,7 +68,7 @@ const Portfolio = () => {
       return;
     }
     try {
-      await axios.delete(`${import.meta.env.VITE_API_URL}/api/remove-from-portfolio/${user.id}/${itemId}`);
+      await axios.delete(`${API_URL}/api/remove-from-portfolio/${user.id}/${itemId}`);
       setPortfolioItems(portfolioItems.filter((item) => item.item_id !== itemId));
       setPortfolioSummary((prev) => ({
         ...prev,

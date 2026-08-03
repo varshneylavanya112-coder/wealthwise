@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import styles from "../../style";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_URL = import.meta.env.VITE_API_URL || "https://codezen-backend-bz1g.onrender.com";
 
 const CalculateReturns = ({ selectedScheme }) => {
   const [investmentAmount, setInvestmentAmount] = useState(10000); // Default ₹10,000

@@ -9,6 +9,8 @@ import Groq from "groq-sdk";
 import { useUser } from "@clerk/clerk-react";
 import { motion } from "framer-motion";
 
+const API_URL = import.meta.env.VITE_API_URL || "https://codezen-backend-bz1g.onrender.com";
+
 // Custom Components (Now Rendering JSX)
 const RiskVolatility = ({ selectedCoin, historicalPrice }) => {
   const [metrics, setMetrics] = useState({});
@@ -267,7 +269,7 @@ const CryptoDashboard = () => {
     }
     try {
       const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/add-to-portfolio`,
+        `${API_URL}/api/add-to-portfolio`,
         {
           user_id: user.id,
           item_type: "crypto",
