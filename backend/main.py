@@ -10,10 +10,12 @@ from starlette.responses import JSONResponse
 from pymongo import MongoClient
 import certifi
 from dotenv import load_dotenv
+import copy
 import os
 import json
 from datetime import datetime
 from bson import ObjectId
+from time import monotonic
 
 # Load environment variables from the .env file next to this script
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
@@ -97,6 +99,118 @@ Mftool.is_valid_code = patched_is_valid_code
 
 app = FastAPI()
 mf = Mftool()
+
+CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "300"))
+_TTL_CACHE = {}
+
+
+def _cache_get(key):
+    entry = _TTL_CACHE.get(key)
+    if not entry:
+        return None
+
+    expires_at, value = entry
+    if monotonic() >= expires_at:
+        _TTL_CACHE.pop(key, None)
+        return None
+
+    return copy.deepcopy(value)
+
+
+def _cache_set(key, value, ttl_seconds=CACHE_TTL_SECONDS):
+    _TTL_CACHE[key] = (monotonic() + ttl_seconds, copy.deepcopy(value))
+
+
+def get_cached_historical_nav(scheme_code: str):
+    cache_key = f"historical_nav:{scheme_code}"
+    cached_value = _cache_get(cache_key)
+    if cached_value is not None:
+        return cached_value
+
+    nav_data = mf.get_scheme_historical_nav(scheme_code, as_Dataframe=True)
+    _cache_set(cache_key, nav_data)
+    return copy.deepcopy(nav_data)
+
+
+def compute_risk_metrics(nav_data):
+    if nav_data is None or nav_data.empty:
+        return {
+            "annualized_volatility": 0.0,
+            "annualized_return": 0.0,
+            "sharpe_ratio": 0.0,
+            "returns": [],
+        }
+
+    frame = nav_data.reset_index().rename(columns={"index": "date"})
+    frame["date"] = pd.to_datetime(frame["date"], dayfirst=True)
+    frame["nav"] = pd.to_numeric(frame["nav"], errors="coerce")
+    frame = frame.dropna(subset=["nav"])
+    frame["returns"] = frame["nav"].pct_change()
+    frame = frame.dropna(subset=["returns"])
+
+    if frame.empty:
+        return {
+            "annualized_volatility": 0.0,
+            "annualized_return": 0.0,
+            "sharpe_ratio": 0.0,
+            "returns": [],
+        }
+
+    annualized_volatility = frame["returns"].std() * np.sqrt(252)
+    annualized_return = (frame["returns"].mean() + 1) ** 252 - 1
+    risk_free_rate = 0.06
+    sharpe_ratio = (
+        (annualized_return - risk_free_rate) / annualized_volatility
+        if annualized_volatility > 0 else 0
+    )
+
+    returns_list = frame[["date", "returns"]].to_dict(orient="records")
+    for item in returns_list:
+        item["date"] = item["date"].strftime("%Y-%m-%d")
+        item["returns"] = float(item["returns"])
+
+    return {
+        "annualized_volatility": float(annualized_volatility),
+        "annualized_return": float(annualized_return),
+        "sharpe_ratio": float(sharpe_ratio),
+        "returns": returns_list,
+    }
+
+
+def compute_monte_carlo_prediction(nav_data, num_simulations: int = 1000, days: int = 252):
+    if nav_data is None or nav_data.empty:
+        return {}
+
+    frame = nav_data.reset_index().rename(columns={"index": "date"})
+    frame["nav"] = pd.to_numeric(frame["nav"], errors="coerce")
+    frame = frame.dropna(subset=["nav"])
+    returns = frame["nav"].pct_change().dropna()
+
+    if len(returns) < 2:
+        return {"message": "Insufficient data for Monte Carlo simulation"}
+
+    mu = returns.mean()
+    sigma = returns.std()
+    last_nav = float(frame["nav"].iloc[-1])
+    simulations = np.zeros((num_simulations, days))
+    simulations[:, 0] = last_nav
+
+    for t in range(1, days):
+        random_returns = np.random.normal(mu, sigma, num_simulations)
+        simulations[:, t] = simulations[:, t - 1] * (1 + random_returns)
+
+    expected_nav = float(np.mean(simulations[:, -1]))
+    prob_positive = float(np.mean(simulations[:, -1] > last_nav))
+    percentile_5 = float(np.percentile(simulations[:, -1], 5))
+    percentile_95 = float(np.percentile(simulations[:, -1], 95))
+
+    return {
+        "expected_nav": expected_nav,
+        "probability_positive_return": prob_positive * 100,
+        "lower_bound_5th_percentile": percentile_5,
+        "upper_bound_95th_percentile": percentile_95,
+        "last_nav": last_nav,
+    }
 
 # MongoDB connection
 MONGODB_URL = os.getenv("MONGODB_URL")
@@ -347,7 +461,7 @@ async def get_scheme_details(scheme_code: str) -> Dict[str, str]:
 @app.get("/api/historical-nav/{scheme_code}")
 async def get_historical_nav(scheme_code: str) -> List[Dict[str, str]]:
     try:
-        nav_data = mf.get_scheme_historical_nav(scheme_code, as_Dataframe=True)
+        nav_data = get_cached_historical_nav(scheme_code)
         if nav_data is None or nav_data.empty:
             logger.warning("No historical NAV data found for scheme_code: %s", scheme_code)
             return []
@@ -370,7 +484,7 @@ async def compare_navs(scheme_codes: str) -> List[Dict[str, Any]]:
             return []
         comparison_data = {}
         for code in codes:
-            data = mf.get_scheme_historical_nav(code.strip(), as_Dataframe=True)
+            data = get_cached_historical_nav(code.strip())
             if data is not None and not data.empty:
                 data = data.reset_index().rename(columns={"index": "date"})
                 data["date"] = pd.to_datetime(data["date"], dayfirst=True).dt.strftime("%Y-%m-%d")
@@ -421,7 +535,7 @@ async def get_average_aum(period: str = "July - September 2024") -> List[Dict[st
 @app.get("/api/performance-heatmap/{scheme_code}")
 async def get_performance_heatmap(scheme_code: str) -> List[Dict[str, Any]]:
     try:
-        nav_data = mf.get_scheme_historical_nav(scheme_code, as_Dataframe=True)
+        nav_data = get_cached_historical_nav(scheme_code)
         if nav_data is not None and not nav_data.empty:
             nav_data = nav_data.reset_index().rename(columns={"index": "date"})
             nav_data["date"] = pd.to_datetime(nav_data["date"], dayfirst=True)
@@ -442,44 +556,9 @@ async def get_performance_heatmap(scheme_code: str) -> List[Dict[str, Any]]:
 async def get_risk_volatility(scheme_code: str) -> Dict[str, Any]:
     try:
         logger.info(f"Fetching risk volatility for scheme_code: {scheme_code}")
-        nav_data = mf.get_scheme_historical_nav(scheme_code, as_Dataframe=True)
-        if nav_data is None or nav_data.empty:
-            logger.warning(f"No NAV data found for scheme_code: {scheme_code}")
-            return {
-                "annualized_volatility": 0.0,
-                "annualized_return": 0.0,
-                "sharpe_ratio": 0.0,
-                "returns": []
-            }
-        
-        nav_data = nav_data.reset_index().rename(columns={"index": "date"})
-        nav_data["date"] = pd.to_datetime(nav_data["date"], dayfirst=True)
-        nav_data["nav"] = pd.to_numeric(nav_data["nav"], errors="coerce")
-        nav_data = nav_data.dropna(subset=["nav"])
-        nav_data["returns"] = nav_data["nav"].pct_change()
-        nav_data = nav_data.dropna(subset=["returns"])
-        
-        annualized_volatility = nav_data["returns"].std() * np.sqrt(252)
-        annualized_return = (nav_data["returns"].mean() + 1) ** 252 - 1
-        risk_free_rate = 0.06
-        sharpe_ratio = (
-            (annualized_return - risk_free_rate) / annualized_volatility 
-            if annualized_volatility > 0 else 0
-        )
-        
-        # Format returns for frontend
-        returns_list = nav_data[["date", "returns"]].to_dict(orient="records")
-        for item in returns_list:
-            item["date"] = item["date"].strftime("%Y-%m-%d")
-            item["returns"] = float(item["returns"])
-        
+        risk_metrics = compute_risk_metrics(get_cached_historical_nav(scheme_code))
         logger.info(f"Successfully calculated risk metrics for {scheme_code}")
-        return {
-            "annualized_volatility": float(annualized_volatility),
-            "annualized_return": float(annualized_return),
-            "sharpe_ratio": float(sharpe_ratio),
-            "returns": returns_list
-        }
+        return risk_metrics
     except Exception as e:
         logger.exception("Error fetching risk volatility")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -487,40 +566,7 @@ async def get_risk_volatility(scheme_code: str) -> Dict[str, Any]:
 @app.get("/api/monte-carlo-prediction/{scheme_code}")
 async def get_monte_carlo_prediction(scheme_code: str, num_simulations: int = 1000, days: int = 252) -> Dict[str, Any]:
     try:
-        nav_data = mf.get_scheme_historical_nav(scheme_code, as_Dataframe=True)
-        if nav_data is None or nav_data.empty:
-            return {}
-
-        nav_data = nav_data.reset_index().rename(columns={"index": "date"})
-        nav_data["nav"] = pd.to_numeric(nav_data["nav"], errors="coerce")
-        nav_data = nav_data.dropna(subset=["nav"])
-        nav_data["returns"] = nav_data["nav"].pct_change().dropna()
-
-        if len(nav_data["returns"]) < 2:
-            return {"message": "Insufficient data for Monte Carlo simulation"}
-
-        mu = nav_data["returns"].mean()
-        sigma = nav_data["returns"].std()
-        last_nav = float(nav_data["nav"].iloc[-1])
-        simulations = np.zeros((num_simulations, days))
-        simulations[:, 0] = last_nav
-
-        for t in range(1, days):
-            random_returns = np.random.normal(mu, sigma, num_simulations)
-            simulations[:, t] = simulations[:, t - 1] * (1 + random_returns)
-
-        expected_nav = float(np.mean(simulations[:, -1]))
-        prob_positive = float(np.mean(simulations[:, -1] > last_nav))
-        percentile_5 = float(np.percentile(simulations[:, -1], 5))
-        percentile_95 = float(np.percentile(simulations[:, -1], 95))
-
-        return {
-            "expected_nav": expected_nav,
-            "probability_positive_return": prob_positive * 100,
-            "lower_bound_5th_percentile": percentile_5,
-            "upper_bound_95th_percentile": percentile_95,
-            "last_nav": last_nav,
-        }
+        return compute_monte_carlo_prediction(get_cached_historical_nav(scheme_code), num_simulations, days)
     except Exception as e:
         logger.exception("Error in Monte Carlo prediction")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -528,6 +574,11 @@ async def get_monte_carlo_prediction(scheme_code: str, num_simulations: int = 10
 @app.get("/api/portfolio-summary/{user_id}")
 async def get_portfolio_summary(user_id: str) -> Dict[str, Any]:
     try:
+        cache_key = f"portfolio_summary:{user_id}"
+        cached_summary = _cache_get(cache_key)
+        if cached_summary is not None:
+            return cached_summary
+
         if portfolio_collection is None:
             return {"items": [], "total_latest_nav": 0.0}
         portfolio_items = list(portfolio_collection.find({"user_id": user_id}))
@@ -538,18 +589,9 @@ async def get_portfolio_summary(user_id: str) -> Dict[str, Any]:
         total_latest_nav = 0.0
         for item in portfolio_items:
             if item["item_type"] == "mutual_fund":
-                nav_data = mf.get_scheme_historical_nav(item["item_id"], as_Dataframe=True)
-                try:
-                    monte_carlo = await get_monte_carlo_prediction(item["item_id"])
-                except HTTPException:
-                    logger.exception("Monte Carlo failed for portfolio item %s", item["item_id"])
-                    monte_carlo = {}
-
-                try:
-                    risk = await get_risk_volatility(item["item_id"])
-                except HTTPException:
-                    logger.exception("Risk volatility failed for portfolio item %s", item["item_id"])
-                    risk = {}
+                nav_data = get_cached_historical_nav(item["item_id"])
+                monte_carlo = compute_monte_carlo_prediction(nav_data)
+                risk = compute_risk_metrics(nav_data)
 
                 if nav_data is not None and not nav_data.empty:
                     nav_data = nav_data.reset_index().rename(columns={"index": "date"})
@@ -588,7 +630,9 @@ async def get_portfolio_summary(user_id: str) -> Dict[str, Any]:
                     "risk_volatility": "N/A",
                 })
 
-        return {"items": summary_items, "total_latest_nav": total_latest_nav}
+        summary_response = {"items": summary_items, "total_latest_nav": total_latest_nav}
+        _cache_set(cache_key, summary_response, ttl_seconds=120)
+        return summary_response
     except HTTPException:
         raise
     except Exception as e:
