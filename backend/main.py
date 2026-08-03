@@ -479,16 +479,20 @@ async def get_historical_nav(scheme_code: str) -> List[Dict[str, str]]:
 @app.get("/api/compare-navs")
 async def compare_navs(scheme_codes: str) -> List[Dict[str, Any]]:
     try:
-        codes = scheme_codes.split(",")
+        codes = [code.strip() for code in scheme_codes.split(",") if code.strip()]
         if not codes:
             return []
         comparison_data = {}
         for code in codes:
             data = get_cached_historical_nav(code.strip())
             if data is not None and not data.empty:
-                data = data.reset_index().rename(columns={"index": "date"})
-                data["date"] = pd.to_datetime(data["date"], dayfirst=True).dt.strftime("%Y-%m-%d")
+                data = data.reset_index()
+                date_column = next((column for column in data.columns if column.lower() == "date"), data.columns[0])
+                if date_column != "date":
+                    data = data.rename(columns={date_column: "date"})
+                data["date"] = pd.to_datetime(data["date"], errors="coerce", dayfirst=True).dt.strftime("%Y-%m-%d")
                 data["nav"] = pd.to_numeric(data["nav"], errors="coerce").replace(0, None).interpolate()
+                data = data.dropna(subset=["date"])
                 comparison_data[code] = data[["date", "nav"]].to_dict(orient="records")
         if comparison_data:
             merged_df = None
