@@ -1,0 +1,18 @@
+[
+  {
+    "user_id": "test_user_123",
+    "item_type": "mutual_fund",
+    "item_id": "119597",
+    "name": "Axis Bluechip Fund",
+    "added_at": "2026-07-25T13:48:40.531293",
+    "_id": "6a64716072b251b96b93caef"
+  },
+  {
+    "user_id": "user_361bqvbWzgJAysYZObh1mTnazNQ",
+    "item_type": "mutual_fund",
+    "item_id": "108675",
+    "name": "BANDHAN Dynamic Bond Fund - Regular Plan B - Annual IDCW",
+    "added_at": "2026-07-25T15:10:01.396840",
+    "_id": "6a6484718d695756a144951c"
+  }
+]

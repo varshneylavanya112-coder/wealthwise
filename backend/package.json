@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "start": "C:/Users/dvars/AppData/Local/Programs/Python/Python311/python.exe -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload",
+    "dev": "C:/Users/dvars/AppData/Local/Programs/Python/Python311/python.exe -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+  },
   "dependencies": {
     "plotly.js": "^3.0.1",
     "react-plotly.js": "^2.6.0"
