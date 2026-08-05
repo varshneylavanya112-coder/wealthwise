@@ -307,11 +307,11 @@ const CryptoDashboard = () => {
     const summary = {
       coin_name: selectedCoin.name,
       launched: coinDetails.genesis_date || "N/A",
-      current_price: coinDetails.market_data?.current_price?.usd || latestPrice,
+      current_price: coinDetails.market_data?.current_price?.usd ?? latestPrice ?? 0,
       one_year_growth: oneYearGrowth,
       best_month: bestMonth.month ? `${bestMonth.month} (+${(bestMonth.dayChange * 100).toFixed(2)}%)` : "N/A",
       worst_month: worstMonth.month ? `${worstMonth.month} (${(worstMonth.dayChange * 100).toFixed(2)}%)` : "N/A",
-      market_cap: coinDetails.market_cap?.usd || selectedCoin.market_cap,
+      market_cap: coinDetails.market_data?.market_cap?.usd ?? selectedCoin.market_cap ?? 0,
       monte_carlo_prediction: monteCarloData,
       risk_volatility: riskData,
     };
@@ -320,11 +320,11 @@ const CryptoDashboard = () => {
       I have data about a cryptocurrency called '${summary.coin_name}'. Please provide a simple, friendly explanation for someone new to investing based on this data:
       - Coin Name: ${summary.coin_name}
       - Launched: ${summary.launched}
-      - Current Price: $${summary.current_price.toFixed(2)}
+      - Current Price: $${(Number(summary.current_price) || 0).toFixed(2)}
       - 1-Year Growth: ${summary.one_year_growth}%
       - Best Month: ${summary.best_month}
       - Worst Month: ${summary.worst_month}
-      - Market Cap: $${summary.market_cap.toLocaleString()}
+      - Market Cap: $${(Number(summary.market_cap) || 0).toLocaleString()}
       - Monte Carlo Prediction: ${JSON.stringify(summary.monte_carlo_prediction)}
       - Risk & Volatility: ${JSON.stringify(summary.risk_volatility)}
       Give me a clear, conversational breakdown in a point-by-point format—like advice from a friend. Cover these points without repeating the questions:
@@ -380,10 +380,10 @@ const CryptoDashboard = () => {
     const summary = {
       name: selectedCoin.name,
       symbol: selectedCoin.symbol,
-      current_price: coinDetails.market_data?.current_price?.usd || latestPrice,
-      price_change_percentage_24h: selectedCoin.price_change_percentage_24h,
-      market_cap: coinDetails.market_cap?.usd || selectedCoin.market_cap,
-      total_volume: coinDetails.market_data?.total_volume?.usd || selectedCoin.total_volume,
+      current_price: coinDetails.market_data?.current_price?.usd ?? latestPrice ?? 0,
+      price_change_percentage_24h: selectedCoin.price_change_percentage_24h ?? 0,
+      market_cap: coinDetails.market_data?.market_cap?.usd ?? selectedCoin.market_cap ?? 0,
+      total_volume: coinDetails.market_data?.total_volume?.usd ?? selectedCoin.total_volume ?? 0,
       one_year_growth: oneYearGrowth,
       best_month: bestMonth.month ? `${bestMonth.month} (+${(bestMonth.dayChange * 100).toFixed(2)}%)` : "N/A",
       worst_month: worstMonth.month ? `${worstMonth.month} (${(worstMonth.dayChange * 100).toFixed(2)}%)` : "N/A",
@@ -394,10 +394,10 @@ const CryptoDashboard = () => {
       Act as a Cryptocurrency Expert Advisor. I have data about a cryptocurrency called '${summary.name}'. Provide a detailed, friendly report for a beginner investor, guiding them on how to proceed with this crypto based on this data:
       - Crypto Name: ${summary.name}
       - Symbol: ${summary.symbol}
-      - Current Price: $${summary.current_price.toFixed(2)}
-      - 24h Price Change: ${summary.price_change_percentage_24h.toFixed(2)}%
-      - Market Cap: $${summary.market_cap.toLocaleString()}
-      - 24h Trading Volume: $${summary.total_volume.toLocaleString()}
+      - Current Price: $${(Number(summary.current_price) || 0).toFixed(2)}
+      - 24h Price Change: ${(Number(summary.price_change_percentage_24h) || 0).toFixed(2)}%
+      - Market Cap: $${(Number(summary.market_cap) || 0).toLocaleString()}
+      - 24h Trading Volume: $${(Number(summary.total_volume) || 0).toLocaleString()}
       - 1-Year Growth: ${summary.one_year_growth}%
       - Best Month: ${summary.best_month}
       - Worst Month: ${summary.worst_month}
@@ -463,7 +463,7 @@ const CryptoDashboard = () => {
         >
           <h3 className="text-white text-md font-semibold mb-2">{coin.name}</h3>
           <p className="text-gray-400 text-sm">Symbol: {coin.symbol.toUpperCase()}</p>
-          <p className="text-gray-400 text-sm">Price: {currency.Symbol}{coin.current_price.toLocaleString()}</p>
+          <p className="text-gray-400 text-sm">Price: {currency.Symbol}{(coin.current_price ?? 0).toLocaleString()}</p>
           <div className="flex justify-between mt-2">
             <button
               onClick={() => handleSelectCoin(coin)}
@@ -488,11 +488,11 @@ const CryptoDashboard = () => {
       <div className="bg-gray-800 rounded-lg p-4 shadow-md">
         <h3 className="text-white text-lg font-semibold mb-2">{selectedCoin.name}</h3>
         <div className="text-gray-300 text-sm">
-          <p><span className="font-medium">Symbol:</span> {coinDetails.symbol?.toUpperCase()}</p>
-          <p><span className="font-medium">Market Cap:</span> ${coinDetails.market_cap?.usd?.toLocaleString()}</p>
-          <p><span className="font-medium">Current Price:</span> ${coinDetails.market_data?.current_price?.usd?.toFixed(2)}</p>
+          <p><span className="font-medium">Symbol:</span> {coinDetails.symbol?.toUpperCase() || selectedCoin.symbol?.toUpperCase() || "N/A"}</p>
+          <p><span className="font-medium">Market Cap:</span> ${(coinDetails.market_data?.market_cap?.usd ?? selectedCoin.market_cap ?? 0).toLocaleString()}</p>
+          <p><span className="font-medium">Current Price:</span> ${(coinDetails.market_data?.current_price?.usd ?? selectedCoin.current_price ?? 0).toFixed(2)}</p>
           <p><span className="font-medium">Launch Date:</span> {coinDetails.genesis_date || "N/A"}</p>
-          <p><span className="font-medium">Volume (24h):</span> ${coinDetails.market_data?.total_volume?.usd?.toLocaleString()}</p>
+          <p><span className="font-medium">Volume (24h):</span> ${(coinDetails.market_data?.total_volume?.usd ?? selectedCoin.total_volume ?? 0).toLocaleString()}</p>
         </div>
         <button
           onClick={() => addToPortfolio(selectedCoin)}

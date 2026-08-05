@@ -82,17 +82,17 @@ function Home() {
               </div>
               <p>
                 {currency.Symbol}
-                {item.current_price.toLocaleString()}
+                {(item.current_price ?? 0).toLocaleString()}
               </p>
               <p
                 className={`text-center ${
-                  item.price_change_percentage_24h > 0 ? "text-green-500" : "text-red-500"
+                  (item.price_change_percentage_24h ?? 0) > 0 ? "text-green-500" : "text-red-500"
                 }`}
               >
-                {Math.floor(item.price_change_percentage_24h * 100) / 100}
+                {Math.floor((item.price_change_percentage_24h ?? 0) * 100) / 100}
               </p>
               <p className="market-cap text-right">
-                {currency.Symbol} {item.market_cap.toLocaleString()}
+                {currency.Symbol} {(item.market_cap ?? 0).toLocaleString()}
               </p>
             </Link>
           ))}
