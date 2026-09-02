@@ -204,7 +204,7 @@ const MutualFundDashboard = () => {
     try {
       const chatCompletion = await groqClient.chat.completions.create({
         messages: [{ role: "user", content: prompt }],
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-120b",
         temperature: 1,
         max_completion_tokens: 1024,
         top_p: 1,
@@ -298,7 +298,7 @@ const MutualFundDashboard = () => {
       console.log("Starting AI Report generation with data:", summary);
       const chatCompletion = await groqClient.chat.completions.create({
         messages: [{ role: "user", content: prompt }],
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-120b",
         temperature: 0.8,
         max_completion_tokens: 2048,
         top_p: 1,

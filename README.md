@@ -124,7 +124,7 @@ anamiiikka-codezen/
 
 - **Frontend**: React, Vite, TailwindCSS, Framer Motion, Recharts, Plotly.js
 - **Backend**: FastAPI, MongoDB, Python (mftool, pandas, numpy)
-- **AI Integration**: Groq API (Llama 3.3-70b)
+- **AI Integration**: Groq API ()
  - **Authentication**: Clerk
 - **Deployment**: Vercel
 
